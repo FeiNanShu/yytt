@@ -413,27 +413,72 @@ public class MainActivity extends Activity {
             if (!item.on) {
                 continue;
             }
-            if (item.match.length() == 0) {
-                continue;
-            }
-            if (url.indexOf(item.match) < 0) {
+            if (!matchUrl(item.match, url)) {
                 continue;
             }
             inject(item.code);
         }
     }
 
-    private void inject(String code) {
+    private boolean matchUrl(String match, String url) {
+        if (match == null || match.length() == 0) {
+            return false;
+        }
+        if (match.equals("*")) {
+            return true;
+        }
+        String target = url == null ? "" : url.toLowerCase();
+        return target.indexOf(match.toLowerCase()) >= 0;
+    }
+
+    private void injectCurrent() {
+        String url = webView.getUrl();
+        if (url != null) {
+            runScripts(url);
+        }
+    }
+
+    private void inject(final String code) {
         if (code == null || code.length() == 0) {
             return;
         }
-        if (Build.VERSION.SDK_INT >= 19) {
-            webView.evaluateJavascript(code, null);
-        } else {
+        if (Build.VERSION.SDK_INT < 19) {
             // 老系统没有 evaluateJavascript，退回到 javascript: 方式
-            String oneLine = code.replace("\n", " ").replace("\r", " ");
-            webView.loadUrl("javascript:" + oneLine);
+            webView.loadUrl("javascript:" + code.replace("\n", " ").replace("\r", " "));
+            return;
         }
+        // 先做一次语法检查：语法错的脚本会被 WebView 静默丢弃，这里要报出来
+        String checker = "(function(){try{new Function(" + jsString(code) + ");"
+                + "return 'OK';}catch(e){return 'ERR ' + e.message;}})()";
+        webView.evaluateJavascript(checker, new ValueCallback<String>() {
+            public void onReceiveValue(String value) {
+                String msg = jsonToText(value);
+                if (msg.startsWith("ERR ")) {
+                    toast("脚本语法错误：" + msg.substring(4));
+                    return;
+                }
+                webView.evaluateJavascript(code, null);
+            }
+        });
+    }
+
+    private String jsString(String code) {
+        String s = code.replace("\\", "\\\\")
+                       .replace("\"", "\\\"")
+                       .replace("\r", "\\r")
+                       .replace("\n", "\\n");
+        return "\"" + s + "\"";
+    }
+
+    private String jsonToText(String value) {
+        if (value == null || value.equals("null")) {
+            return "";
+        }
+        String v = value;
+        if (v.length() >= 2 && v.startsWith("\"") && v.endsWith("\"")) {
+            v = v.substring(1, v.length() - 1);
+        }
+        return v.replace("\\\"", "\"").replace("\\n", "\n").replace("\\r", "");
     }
 
     private void showSource() {
@@ -485,6 +530,9 @@ public class MainActivity extends Activity {
             public void onCheckedChanged(CompoundButton button, boolean checked) {
                 globalOn = checked;
                 sp.edit().putBoolean(KEY_GLOBAL, checked).apply();
+                if (checked) {
+                    injectCurrent();
+                }
             }
         });
         body.addView(allSwitch);
@@ -537,6 +585,9 @@ public class MainActivity extends Activity {
             public void onCheckedChanged(CompoundButton button, boolean checked) {
                 item.on = checked;
                 saveData();
+                if (checked) {
+                    injectCurrent();
+                }
             }
         });
         row.addView(sw);
@@ -575,7 +626,7 @@ public class MainActivity extends Activity {
         body.addView(nameBox);
 
         final EditText matchBox = new EditText(this);
-        matchBox.setHint("网址要包含的文字，例如 baidu.com");
+        matchBox.setHint("网址要包含的文字，例如 baidu.com；填 * 表示所有网页");
         matchBox.setSingleLine(true);
         body.addView(matchBox);
 
@@ -622,6 +673,7 @@ public class MainActivity extends Activity {
                 }
 
                 saveData();
+                injectCurrent();
                 reopenManager();
             }
         });
