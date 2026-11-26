@@ -4,9 +4,12 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.net.Uri;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Message;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -14,6 +17,7 @@ import android.view.ViewGroup;
 import android.webkit.JsResult;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
@@ -98,15 +102,52 @@ public class MainActivity extends Activity {
         webView = new WebView(this);
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
+        webView.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
+        webView.getSettings().setSupportMultipleWindows(true);
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
                 runScripts(url);
             }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                return handleUrl(url);
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                return handleUrl(request.getUrl().toString());
+            }
         });
 
         webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onCreateWindow(WebView view, boolean isDialog,
+                                          boolean isUserGesture, Message resultMsg) {
+                final WebView tmp = new WebView(MainActivity.this);
+                tmp.setWebViewClient(new WebViewClient() {
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView v, String u) {
+                        if (u != null && !handleUrl(u)) {
+                            webView.loadUrl(u);
+                        }
+                        tmp.destroy();
+                        return true;
+                    }
+
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+                        return shouldOverrideUrlLoading(v, r.getUrl().toString());
+                    }
+                });
+                WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
+                transport.setWebView(tmp);
+                resultMsg.sendToTarget();
+                return true;
+            }
+
             @Override
             public boolean onJsAlert(WebView view, String url, String message, final JsResult result) {
                 new AlertDialog.Builder(MainActivity.this)
@@ -173,6 +214,35 @@ public class MainActivity extends Activity {
             return raw;
         }
         return "https://" + raw;
+    }
+
+    private boolean handleUrl(String url) {
+        if (url == null || url.length() == 0) {
+            return false;
+        }
+        String lower = url.toLowerCase();
+        if (lower.startsWith("javascript:")) {
+            return false;
+        }
+        if (lower.startsWith("http://") || lower.startsWith("https://")
+                || lower.startsWith("about:") || lower.startsWith("data:")
+                || lower.startsWith("file:")) {
+            return false;
+        }
+        try {
+            Intent intent;
+            if (lower.startsWith("intent:")) {
+                intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+            } else {
+                intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            }
+            intent.addCategory(Intent.CATEGORY_BROWSABLE);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        } catch (Exception e) {
+            toast("打不开这个链接：" + url);
+        }
+        return true;
     }
 
     private void runScripts(String url) {
