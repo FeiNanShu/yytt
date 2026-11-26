@@ -2,6 +2,7 @@ package com.mycompany.yytt;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DownloadManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -9,6 +10,7 @@ import android.net.Uri;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Message;
 import android.text.InputType;
 import android.view.Gravity;
@@ -20,6 +22,8 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.DownloadListener;
+import android.webkit.URLUtil;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.EditText;
@@ -34,6 +38,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.lang.reflect.Method;
 
 public class MainActivity extends Activity {
 
@@ -47,6 +52,15 @@ public class MainActivity extends Activity {
     private List<ScriptItem> scripts;
     private boolean globalOn = true;
     private AlertDialog managerDialog;
+
+    private static final int REQ_PICK_FILE = 1001;
+    private static final int REQ_STORAGE = 2002;
+    private ValueCallback<Uri[]> fileCallback;
+
+    private String dlUrl;
+    private String dlUa;
+    private String dlCd;
+    private String dlMime;
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -122,7 +136,39 @@ public class MainActivity extends Activity {
             }
         });
 
+        webView.setDownloadListener(new DownloadListener() {
+            public void onDownloadStart(String url, String userAgent, String contentDisposition,
+                                        String mimetype, long contentLength) {
+                startDownload(url, userAgent, contentDisposition, mimetype);
+            }
+        });
+
         webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback,
+                                             WebChromeClient.FileChooserParams params) {
+                if (fileCallback != null) {
+                    fileCallback.onReceiveValue(null);
+                }
+                fileCallback = callback;
+
+                Intent pick = new Intent(Intent.ACTION_GET_CONTENT);
+                pick.addCategory(Intent.CATEGORY_OPENABLE);
+                pick.setType("*/*");
+                if (params != null
+                        && params.getMode() == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE) {
+                    pick.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                }
+                try {
+                    startActivityForResult(Intent.createChooser(pick, "选择文件"), REQ_PICK_FILE);
+                } catch (Exception e) {
+                    fileCallback = null;
+                    toast("这台机器没有可用的文件选择器");
+                    return false;
+                }
+                return true;
+            }
+
             @Override
             public boolean onCreateWindow(WebView view, boolean isDialog,
                                           boolean isUserGesture, Message resultMsg) {
@@ -243,6 +289,119 @@ public class MainActivity extends Activity {
             toast("打不开这个链接：" + url);
         }
         return true;
+    }
+
+    private void startDownload(String url, String userAgent, String contentDisposition, String mimetype) {
+        if (url == null || url.length() == 0) {
+            return;
+        }
+        if (url.startsWith("blob:") || url.startsWith("data:")) {
+            toast("这种链接（blob/data）抓不到文件，换页面里的直链试试");
+            return;
+        }
+        if (!(url.startsWith("http://") || url.startsWith("https://"))) {
+            handleUrl(url);
+            return;
+        }
+
+        dlUrl = url;
+        dlUa = userAgent;
+        dlCd = contentDisposition;
+        dlMime = mimetype;
+
+        // 安卓 10 起公共下载目录不用权限；8/9 需要存储权限
+        if (Build.VERSION.SDK_INT >= 29 || hasStoragePermission()) {
+            enqueueDownload();
+            return;
+        }
+        requestStoragePermission();
+    }
+
+    private boolean hasStoragePermission() {
+        try {
+            Method check = Activity.class.getMethod("checkSelfPermission", String.class);
+            Object result = check.invoke(this, "android.permission.WRITE_EXTERNAL_STORAGE");
+            int code = ((Integer) result).intValue();
+            return code == 0;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private void requestStoragePermission() {
+        try {
+            Method req = Activity.class.getMethod("requestPermissions", String[].class, int.class);
+            req.invoke(this, new String[]{"android.permission.WRITE_EXTERNAL_STORAGE"},
+                    Integer.valueOf(REQ_STORAGE));
+        } catch (Exception e) {
+            toast("没拿到存储权限，下载可能失败");
+            enqueueDownload();
+        }
+    }
+
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode == REQ_STORAGE) {
+            if (grantResults != null && grantResults.length > 0 && grantResults[0] == 0) {
+                enqueueDownload();
+            } else {
+                toast("没给存储权限，安卓 8/9 上没法存到下载目录");
+            }
+            return;
+        }
+    }
+
+    private void enqueueDownload() {
+        try {
+            DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+            if (dm == null) {
+                toast("系统没有下载服务");
+                return;
+            }
+            String name = URLUtil.guessFileName(dlUrl, dlCd, dlMime);
+
+            DownloadManager.Request req = new DownloadManager.Request(Uri.parse(dlUrl));
+            if (dlMime != null && dlMime.length() > 0) {
+                req.setMimeType(dlMime);
+            }
+            if (dlUa != null && dlUa.length() > 0) {
+                req.addRequestHeader("User-Agent", dlUa);
+            }
+            req.setTitle(name);
+            req.setDescription("yytt 下载");
+            req.setNotificationVisibility(
+                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+            // 存到公共下载目录，路径和系统浏览器一致
+            req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
+
+            dm.enqueue(req);
+            toast("开始下载：" + name);
+        } catch (Exception e) {
+            toast("下载失败：" + e.getMessage());
+        }
+    }
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQ_PICK_FILE) {
+            if (fileCallback == null) {
+                return;
+            }
+            Uri[] results = null;
+            if (resultCode == RESULT_OK && data != null) {
+                if (data.getClipData() != null) {
+                    int count = data.getClipData().getItemCount();
+                    results = new Uri[count];
+                    for (int i = 0; i < count; i++) {
+                        results[i] = data.getClipData().getItemAt(i).getUri();
+                    }
+                } else if (data.getData() != null) {
+                    results = new Uri[]{data.getData()};
+                }
+            }
+            fileCallback.onReceiveValue(results);
+            fileCallback = null;
+            return;
+        }
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     private void runScripts(String url) {
