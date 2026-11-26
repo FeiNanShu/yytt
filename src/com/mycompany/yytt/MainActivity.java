@@ -422,7 +422,8 @@ public class MainActivity extends Activity {
 
     private boolean matchUrl(String match, String url) {
         if (match == null || match.length() == 0) {
-            return false;
+            // 留空 = 所有网页都跑
+            return true;
         }
         if (match.equals("*")) {
             return true;
@@ -626,7 +627,7 @@ public class MainActivity extends Activity {
         body.addView(nameBox);
 
         final EditText matchBox = new EditText(this);
-        matchBox.setHint("网址要包含的文字，例如 baidu.com；填 * 表示所有网页");
+        matchBox.setHint("可留空：留空 = 浏览器里所有网页通用；填了才只对含这段的网址生效");
         matchBox.setSingleLine(true);
         body.addView(matchBox);
 
