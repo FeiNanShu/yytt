@@ -3,21 +3,26 @@ package com.mycompany.yytt;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.PorterDuff;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.Message;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.view.Gravity;
+import android.view.Window;
+import android.view.WindowManager;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
@@ -72,6 +77,8 @@ public class MainActivity extends Activity {
 
     private static final String DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
+    private static final String JS_LOGIN_CHECK = "(function(){var as=document.getElementsByTagName('a');for(var i=0;i<as.length;i++){var h=as[i].href||'';if(h.indexOf('account/logout')>=0)return 'yes';}var t=document.getElementById('account-topbutton');if(t&&(t.textContent||'').indexOf('|')>=0)return 'yes';return 'no';})()";
+
     private static final int REQ_PICK_FILE = 1001;
     private static final int REQ_STORAGE = 2002;
 
@@ -97,6 +104,8 @@ public class MainActivity extends Activity {
     private boolean editing = false;
     private AlertDialog dialogRef = null;
     private AlertDialog managerDialog = null;
+    private Handler loginHandler = null;
+    private boolean loginDone = false;
 
     private ValueCallback<Uri[]> fileCallback = null;
     private String dlUrl = null;
@@ -1071,6 +1080,33 @@ public class MainActivity extends Activity {
     }
 
     private void wdLogin() {
+        final Dialog dlg = new Dialog(this);
+        dlg.requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setBackgroundDrawable(bg(C_BG, 16, 1, C_LINE));
+
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(16), 0, dp(6), 0);
+
+        TextView title = new TextView(this);
+        title.setText("登录 Wikidot");
+        title.setTextSize(14);
+        title.setTextColor(C_TXT);
+        title.setSingleLine(true);
+        header.addView(title, new LinearLayout.LayoutParams(0, dp(44), 1));
+
+        TextView closeBtn = textBtn("×", 20, C_TXT2);
+        header.addView(closeBtn, new LinearLayout.LayoutParams(dp(44), dp(44)));
+        box.addView(header, new LinearLayout.LayoutParams(MATCH, dp(44)));
+
+        View line = new View(this);
+        line.setBackgroundColor(C_LINE);
+        box.addView(line, new LinearLayout.LayoutParams(MATCH, dp(1)));
+
         final WebView login = new WebView(this);
         WebSettings s1 = login.getSettings();
         s1.setJavaScriptEnabled(true);
@@ -1079,46 +1115,119 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 21) {
             CookieManager.getInstance().setAcceptThirdPartyCookies(login, true);
         }
+        login.setBackgroundColor(C_BG);
+        box.addView(login, new LinearLayout.LayoutParams(MATCH, 0, 1));
 
-        FrameLayout wrap = new FrameLayout(this);
-        int h = (int) (getResources().getDisplayMetrics().heightPixels * 0.62f);
-        wrap.addView(login, new FrameLayout.LayoutParams(MATCH, h));
+        TextView tip = new TextView(this);
+        tip.setText("登录成功后会自动检测并关掉这个窗口");
+        tip.setTextSize(11);
+        tip.setTextColor(C_TXT2);
+        tip.setGravity(Gravity.CENTER);
+        tip.setPadding(0, dp(8), 0, dp(8));
+        box.addView(tip, new LinearLayout.LayoutParams(MATCH, WRAP));
 
-        final AlertDialog dlg = new AlertDialog.Builder(this)
-                .setTitle("登录 Wikidot")
-                .setView(wrap)
-                .setNegativeButton("关闭", null)
-                .create();
+        dlg.setContentView(box);
 
-        login.setWebViewClient(new WebViewClient() {
-            public boolean shouldOverrideUrlLoading(WebView v, String url) {
-                return false;
+        Window w = dlg.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new ColorDrawable(0));
+            WindowManager.LayoutParams lp = w.getAttributes();
+            lp.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.94f);
+            lp.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.72f);
+            w.setAttributes(lp);
+        }
+
+        closeBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                dlg.dismiss();
             }
+        });
 
-            public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
-                return false;
-            }
-
-            public void onPageFinished(WebView v, String url) {
-                if (url == null) {
-                    return;
-                }
-                if (url.indexOf("wikidot.com") >= 0 && url.indexOf("/account/login") < 0) {
-                    toast("已登录，所有 wikidot 站点通用");
-                    try {
-                        dlg.dismiss();
-                    } catch (Exception e) {
-                    }
-                    WebView main = curView();
-                    if (main != null) {
-                        main.reload();
-                    }
+        dlg.setOnDismissListener(new DialogInterface.OnDismissListener() {
+            public void onDismiss(DialogInterface d) {
+                stopLoginPoll();
+                try {
+                    login.loadUrl("about:blank");
+                    login.destroy();
+                } catch (Exception e) {
                 }
             }
         });
 
         login.loadUrl("https://www.wikidot.com/account/login");
+        loginDone = false;
         dlg.show();
+        pollLogin(dlg, login);
+    }
+
+    private void pollLogin(final Dialog dlg, final WebView login) {
+        stopLoginPoll();
+        final Handler h = new Handler();
+        loginHandler = h;
+        final Runnable[] task = new Runnable[1];
+        task[0] = new Runnable() {
+            public void run() {
+                if (loginDone || dlg == null || !dlg.isShowing()) {
+                    return;
+                }
+                if (hasWikidotSession()) {
+                    loginSuccess(dlg);
+                    return;
+                }
+                if (Build.VERSION.SDK_INT < 19) {
+                    h.postDelayed(task[0], 1500);
+                    return;
+                }
+                login.evaluateJavascript(JS_LOGIN_CHECK, new ValueCallback<String>() {
+                    public void onReceiveValue(String value) {
+                        if (loginDone || !dlg.isShowing()) {
+                            return;
+                        }
+                        String txt = jsonToText(value);
+                        if (txt.indexOf("yes") >= 0) {
+                            loginSuccess(dlg);
+                            return;
+                        }
+                        h.postDelayed(task[0], 1500);
+                    }
+                });
+            }
+        };
+        h.postDelayed(task[0], 1500);
+    }
+
+    private boolean hasWikidotSession() {
+        try {
+            String c = CookieManager.getInstance().getCookie("https://www.wikidot.com");
+            if (c == null || c.length() == 0) {
+                return false;
+            }
+            String lower = c.toLowerCase();
+            return lower.indexOf("wikidot_token7") >= 0 || lower.indexOf("wikidot_session") >= 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void loginSuccess(Dialog dlg) {
+        loginDone = true;
+        stopLoginPoll();
+        toast("已登录，所有 wikidot 站点通用");
+        try {
+            dlg.dismiss();
+        } catch (Exception e) {
+        }
+        WebView main = curView();
+        if (main != null) {
+            main.reload();
+        }
+    }
+
+    private void stopLoginPoll() {
+        if (loginHandler != null) {
+            loginHandler.removeCallbacksAndMessages(null);
+            loginHandler = null;
+        }
     }
 
     private void wdForum() {
