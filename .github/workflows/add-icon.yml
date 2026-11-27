@@ -1,0 +1,24 @@
+name: add-icon
+on:
+  push:
+    paths:
+      - .github/workflows/add-icon.yml
+permissions:
+  contents: write
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: fetch icon
+        run: |
+          mkdir -p res/drawable
+          curl -fsSL "https://aka.doubaocdn.com/s/7avfQ3rGjX" -o res/drawable/ic_launcher.xml
+          wc -c res/drawable/ic_launcher.xml
+      - name: commit
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add res/drawable/ic_launcher.xml
+          git diff --cached --quiet || git commit -m "add vector launcher icon"
+          git push
