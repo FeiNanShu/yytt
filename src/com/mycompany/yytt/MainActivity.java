@@ -807,7 +807,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void inject(WebView wv, String code) {
+    private void inject(final WebView wv, final String code) {
         if (wv == null || code == null || code.length() == 0) {
             return;
         }
