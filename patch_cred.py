@@ -201,7 +201,7 @@ try:
 
     if s.count('fillLoginForm') != 2:
         raise Exception('fillLoginForm count %d' % s.count('fillLoginForm'))
-    if s.count('credPanel') != 3:
+    if s.count('credPanel') != 2:
         raise Exception('credPanel count %d' % s.count('credPanel'))
     if 'KEY_CRED' not in s:
         raise Exception('KEY_CRED missing')
