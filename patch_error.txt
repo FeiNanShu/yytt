@@ -1,4 +1,4 @@
 Traceback (most recent call last):
-  File "/home/runner/work/yytt/yytt/patch_account.py", line 228, in <module>
+  File "/home/runner/work/yytt/yytt/patch_account.py", line 234, in <module>
     raise Exception('bad quote left')
 Exception: bad quote left
