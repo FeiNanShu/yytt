@@ -594,6 +594,14 @@ public class MainActivity extends Activity {
                         updateAddress();
                     }
                 }
+                if (url != null && url.toLowerCase().indexOf("/account/login") >= 0
+                        && hasLoginCookie()) {
+                    toast("已经登录着，这个登录页自动跳过");
+                    if (v.canGoBack()) {
+                        v.goBack();
+                        return;
+                    }
+                }
                 runScripts(v, url);
             }
 
@@ -1068,6 +1076,10 @@ public class MainActivity extends Activity {
     }
 
     private void wdLogin() {
+        if (hasLoginCookie()) {
+            toast("当前已经是登录状态，不用再登一次");
+            return;
+        }
         loginBaseline = CookieManager.getInstance().getCookie("https://www.wikidot.com");
 
         final Dialog dlg = new Dialog(this);
@@ -1099,12 +1111,23 @@ public class MainActivity extends Activity {
 
         final WebView login = new WebView(this);
         WebSettings s1 = login.getSettings();
+        s1.setSupportMultipleWindows(false);
+        s1.setJavaScriptCanOpenWindowsAutomatically(false);
         s1.setJavaScriptEnabled(true);
         s1.setDomStorageEnabled(true);
         s1.setUserAgentString(desktopUa ? DESKTOP_UA : defaultUa);
         if (Build.VERSION.SDK_INT >= 21) {
             CookieManager.getInstance().setAcceptThirdPartyCookies(login, true);
         }
+        login.setWebViewClient(new WebViewClient() {
+            public boolean shouldOverrideUrlLoading(WebView v, String url) {
+                return keepInside(v, url);
+            }
+
+            public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+                return keepInside(v, r.getUrl().toString());
+            }
+        });
         login.setBackgroundColor(C_BG);
         box.addView(login, new LinearLayout.LayoutParams(MATCH, 0, 1));
 
@@ -1148,6 +1171,62 @@ public class MainActivity extends Activity {
         loginDone = false;
         dlg.show();
         pollLogin(dlg);
+    }
+
+    private boolean keepInside(WebView wv, String url) {
+        if (url == null || url.length() == 0) {
+            return true;
+        }
+        String lower = url.toLowerCase();
+        if (lower.startsWith("http://") || lower.startsWith("https://")
+                || lower.startsWith("about:") || lower.startsWith("data:")) {
+            return false;
+        }
+        if (lower.startsWith("javascript:")) {
+            return true;
+        }
+        if (lower.startsWith("intent:")) {
+            try {
+                Intent it = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+                String fallback = it.getStringExtra("browser_fallback_url");
+                if (fallback != null && fallback.length() > 0) {
+                    wv.loadUrl(fallback);
+                    return true;
+                }
+                String data = it.getDataString();
+                if (data != null) {
+                    String dl = data.toLowerCase();
+                    if (dl.startsWith("http://") || dl.startsWith("https://")) {
+                        wv.loadUrl(data);
+                        return true;
+                    }
+                }
+            } catch (Exception e) {
+            }
+            return true;
+        }
+        return true;
+    }
+
+    private boolean hasLoginCookie() {
+        String c = null;
+        try {
+            c = CookieManager.getInstance().getCookie("https://www.wikidot.com");
+        } catch (Exception e) {
+            return false;
+        }
+        if (c == null || c.length() == 0) {
+            return false;
+        }
+        String t = cookieVal(c, "wikidot_token7");
+        String u = cookieVal(c, "wikidot_session");
+        if (t != null && t.length() > 0) {
+            return true;
+        }
+        if (u != null && u.length() > 0) {
+            return true;
+        }
+        return false;
     }
 
     private void pollLogin(final Dialog dlg) {
