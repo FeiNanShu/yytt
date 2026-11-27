@@ -67,6 +67,8 @@ public class MainActivity extends Activity {
     private static final String KEY_GLOBAL = "global_on";
     private static final String KEY_UA = "ua_desktop";
     private static final String KEY_HOME = "home_url";
+    private static final String KEY_TABS = "tabs";
+    private static final String KEY_TAB_INDEX = "tab_index";
 
     private static final String DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -292,7 +294,9 @@ public class MainActivity extends Activity {
             }
         });
 
-        addNewTab(homeUrl);
+        if (!restoreTabs()) {
+            addNewTab(homeUrl);
+        }
     }
 
     private void beginEdit() {
@@ -384,7 +388,7 @@ public class MainActivity extends Activity {
         return null;
     }
 
-    private Tab addNewTab(String url) {
+    private Tab createTab(String url) {
         WebView wv = new WebView(this);
         setupWebView(wv);
         Tab t = new Tab();
@@ -392,11 +396,66 @@ public class MainActivity extends Activity {
         t.url = url == null ? "" : url;
         t.title = "新标签页";
         tabs.add(t);
-        switchTab(t);
         if (url != null && url.length() > 0) {
             wv.loadUrl(url);
         }
         return t;
+    }
+
+    private Tab addNewTab(String url) {
+        Tab t = createTab(url);
+        switchTab(t);
+        return t;
+    }
+
+    private boolean restoreTabs() {
+        String raw = sp.getString(KEY_TABS, "");
+        if (raw.length() == 0) {
+            return false;
+        }
+        try {
+            JSONArray arr = new JSONArray(raw);
+            if (arr.length() == 0) {
+                return false;
+            }
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                String u = o.optString("url", "");
+                String ti = o.optString("title", "新标签页");
+                Tab t = createTab(u);
+                if (ti.length() > 0) {
+                    t.title = ti;
+                }
+            }
+            int idx = sp.getInt(KEY_TAB_INDEX, tabs.size() - 1);
+            if (idx < 0 || idx >= tabs.size()) {
+                idx = tabs.size() - 1;
+            }
+            switchTab(tabs.get(idx));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void saveTabs() {
+        if (tabs.size() == 0) {
+            return;
+        }
+        try {
+            JSONArray arr = new JSONArray();
+            for (int i = 0; i < tabs.size(); i++) {
+                JSONObject o = new JSONObject();
+                o.put("url", tabs.get(i).url);
+                o.put("title", tabs.get(i).title);
+                arr.put(o);
+            }
+            sp.edit()
+                    .putString(KEY_TABS, arr.toString())
+                    .putInt(KEY_TAB_INDEX, tabs.indexOf(current))
+                    .apply();
+        } catch (Exception e) {
+        }
     }
 
     private void switchTab(Tab t) {
@@ -977,24 +1036,15 @@ public class MainActivity extends Activity {
     }
 
     private void openToolbox() {
-        String[] items = {"Wikidot 登录", "Wikidot 页面选项", "Wikidot 近期更改",
-                "Wikidot 本站入口", "Wikidot 当前页信息", "Wikidot Cookie 一览"};
+        String[] items = {"Wikidot 登录", "Wikidot 论坛"};
         new AlertDialog.Builder(this)
                 .setTitle("工具箱")
                 .setItems(items, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface d, int which) {
                         if (which == 0) {
                             wdLogin();
-                        } else if (which == 1) {
-                            wdPageTools();
-                        } else if (which == 2) {
-                            wdRecent();
-                        } else if (which == 3) {
-                            wdSiteLinks();
-                        } else if (which == 4) {
-                            wdPageInfo();
                         } else {
-                            wdCookies();
+                            wdForum();
                         }
                     }
                 })
@@ -1021,148 +1071,79 @@ public class MainActivity extends Activity {
     }
 
     private void wdLogin() {
-        loadInCurrent("https://www.wikidot.com/account/login");
-        toast("登录一次即可，所有 wikidot 子站共用登录状态");
-    }
-
-    private void wdPageTools() {
-        if (!isWikidotSite()) {
-            toast("当前页面不在 wikidot.com 上");
-            return;
+        final WebView login = new WebView(this);
+        WebSettings s1 = login.getSettings();
+        s1.setJavaScriptEnabled(true);
+        s1.setDomStorageEnabled(true);
+        s1.setUserAgentString(desktopUa ? DESKTOP_UA : defaultUa);
+        if (Build.VERSION.SDK_INT >= 21) {
+            CookieManager.getInstance().setAcceptThirdPartyCookies(login, true);
         }
-        String js = "JSON.stringify((function(){var ids=['edit-button','history-button','tags-button','discuss-button','files-button','view-source-button','print-button','site-tools-button','pagerate-button','watchers-button','backlinks-button','parent-page-button','page-block-button','rename-move-button','delete-button','edit-sections-button','edit-append-button','edit-meta-button'];var out=[];for(var i=0;i<ids.length;i++){var el=document.getElementById(ids[i]);if(el&&el.href){out.push({id:ids[i],text:(el.textContent||'').trim(),href:el.href});}}return out;})())";
-        evalJs(js, new JsCallback() {
-            public void onResult(String text) {
-                try {
-                    JSONArray arr = new JSONArray(text);
-                    if (arr.length() == 0) {
-                        toast("这个页面上没有找到操作按钮");
-                        return;
+
+        FrameLayout wrap = new FrameLayout(this);
+        int h = (int) (getResources().getDisplayMetrics().heightPixels * 0.62f);
+        wrap.addView(login, new FrameLayout.LayoutParams(MATCH, h));
+
+        final AlertDialog dlg = new AlertDialog.Builder(this)
+                .setTitle("登录 Wikidot")
+                .setView(wrap)
+                .setNegativeButton("关闭", null)
+                .create();
+
+        login.setWebViewClient(new WebViewClient() {
+            public boolean shouldOverrideUrlLoading(WebView v, String url) {
+                return false;
+            }
+
+            public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+                return false;
+            }
+
+            public void onPageFinished(WebView v, String url) {
+                if (url == null) {
+                    return;
+                }
+                if (url.indexOf("wikidot.com") >= 0 && url.indexOf("/account/login") < 0) {
+                    toast("已登录，所有 wikidot 站点通用");
+                    try {
+                        dlg.dismiss();
+                    } catch (Exception e) {
                     }
-                    String[] names = new String[arr.length()];
-                    final String[] hrefs = new String[arr.length()];
-                    for (int i = 0; i < arr.length(); i++) {
-                        JSONObject o = arr.getJSONObject(i);
-                        String label = o.optString("text", "");
-                        if (label.length() == 0) {
-                            label = o.optString("id", "选项");
-                        }
-                        names[i] = label;
-                        hrefs[i] = o.optString("href", "");
+                    WebView main = curView();
+                    if (main != null) {
+                        main.reload();
                     }
-                    showLinkList("页面选项", names, hrefs);
-                } catch (Exception e) {
-                    toast("解析失败：" + e.getMessage());
                 }
             }
         });
+
+        login.loadUrl("https://www.wikidot.com/account/login");
+        dlg.show();
     }
 
-    private void showLinkList(String title, String[] names, final String[] hrefs) {
-        new AlertDialog.Builder(this)
-                .setTitle(title)
-                .setItems(names, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface d, int which) {
-                        if (hrefs[which] != null && hrefs[which].length() > 0) {
-                            loadInCurrent(hrefs[which]);
-                        }
-                    }
-                })
-                .show();
-    }
-
-    private void wdRecent() {
-        if (!isWikidotSite()) {
-            toast("当前页面不在 wikidot.com 上");
+    private void wdForum() {
+        String u = curUrl();
+        String lower = u == null ? "" : u.toLowerCase();
+        if (lower.length() == 0 || lower.indexOf("wikidot.com") < 0) {
+            toast("先在地址栏打开任意一个 wikidot 站点");
             return;
         }
-        String origin = originOf(curUrl());
+        String host = "";
+        try {
+            host = Uri.parse(u).getHost();
+        } catch (Exception e) {
+            host = "";
+        }
+        if (host != null && host.toLowerCase().startsWith("www.wikidot.com")) {
+            toast("请先打开某个具体站点，再进它的论坛");
+            return;
+        }
+        String origin = originOf(u);
         if (origin.length() == 0) {
             toast("取不到站点地址");
             return;
         }
-        loadInCurrent(origin + "/system:recent-changes");
-        toast("这里能看到全站新建与编辑，蓝字是新建");
-    }
-
-    private void wdSiteLinks() {
-        if (!isWikidotSite()) {
-            toast("当前页面不在 wikidot.com 上");
-            return;
-        }
-        String origin = originOf(curUrl());
-        final String[] hrefs = {
-                origin + "/system:recent-changes",
-                origin + "/system:page-tags",
-                origin + "/search:site/",
-                origin + "/random:random-page",
-                origin + "/forum",
-                origin + "/system:unread"
-        };
-        String[] names = {"近期更改", "全部标签", "站内搜索", "随机页面", "论坛", "未读帖子"};
-        showLinkList("本站入口", names, hrefs);
-    }
-
-    private void wdPageInfo() {
-        final String url = curUrl();
-        final String title = current == null ? "" : current.title;
-        String js = "(function(){var e=document.getElementById('account-topbutton');return e?(e.textContent||'').trim():'';})()";
-        evalJs(js, new JsCallback() {
-            public void onResult(String text) {
-                String state;
-                if (text.length() == 0) {
-                    state = "取不到（可能不是 wikidot 页面）";
-                } else if (text.indexOf("|") >= 0) {
-                    state = "已登录：" + text;
-                } else {
-                    state = "未登录（按钮显示「" + text + "」）";
-                }
-                new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("当前页信息")
-                        .setMessage("标题：" + title + "\n\n网址：" + url + "\n\n登录状态：" + state)
-                        .setPositiveButton("好", null)
-                        .show();
-            }
-        });
-    }
-
-    private void wdCookies() {
-        String url = curUrl();
-        if (url.length() == 0) {
-            toast("先打开一个页面");
-            return;
-        }
-        String cookie = CookieManager.getInstance().getCookie(url);
-        if (cookie == null || cookie.length() == 0) {
-            toast("这个页面没有 Cookie");
-            return;
-        }
-        String[] parts = cookie.split(";");
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < parts.length; i++) {
-            String p = parts[i].trim();
-            int eq = p.indexOf('=');
-            String name = eq > 0 ? p.substring(0, eq) : p;
-            sb.append(name).append("\n");
-        }
-        new AlertDialog.Builder(this)
-                .setTitle("Cookie 条目（不显示值）")
-                .setMessage(sb.toString())
-                .setPositiveButton("好", null)
-                .show();
-    }
-
-    private void evalJs(String js, final JsCallback cb) {
-        WebView v = curView();
-        if (v == null || Build.VERSION.SDK_INT < 19) {
-            cb.onResult("");
-            return;
-        }
-        v.evaluateJavascript(js, new ValueCallback<String>() {
-            public void onReceiveValue(String value) {
-                cb.onResult(jsonToText(value));
-            }
-        });
+        loadInCurrent(origin + "/forum");
     }
 
     private void openTabsPanel() {
@@ -1450,6 +1431,16 @@ public class MainActivity extends Activity {
 
     private void toast(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    protected void onPause() {
+        saveTabs();
+        super.onPause();
+    }
+
+    protected void onStop() {
+        saveTabs();
+        super.onStop();
     }
 
     public void onBackPressed() {
