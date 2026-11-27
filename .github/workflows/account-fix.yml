@@ -1,0 +1,22 @@
+name: account-fix
+on:
+  push:
+    paths:
+      - patch_account.py
+permissions:
+  contents: write
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: patch
+        run: python3 patch_account.py || true
+      - name: commit
+        if: always()
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add -A
+          git diff --cached --quiet || git commit -m "登录收敛为 Wikidot 账号登录，首次进入引导"
+          git push origin HEAD:main || true
