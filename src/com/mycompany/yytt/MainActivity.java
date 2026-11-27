@@ -93,6 +93,7 @@ public class MainActivity extends Activity {
     private EditText addrEdit;
     private ProgressBar progress;
     private TextView gearBtn;
+    private TextView reloadBtn;
     private TextView goBtn;
     private TextView toolsBtn;
     private TextView tabsBtn;
@@ -213,6 +214,9 @@ public class MainActivity extends Activity {
         addrEdit.setVisibility(View.GONE);
         cap.addView(addrEdit, new FrameLayout.LayoutParams(MATCH, MATCH));
 
+        reloadBtn = textBtn("↻", 18, C_TXT2);
+        top.addView(reloadBtn, new LinearLayout.LayoutParams(dp(44), dp(48)));
+
         goBtn = textBtn("→", 20, C_ACCENT_D);
         top.addView(goBtn, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
@@ -266,6 +270,18 @@ public class MainActivity extends Activity {
         tabsBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 openTabsPanel();
+            }
+        });
+
+        reloadBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (editing) {
+                    endEdit();
+                }
+                WebView wv = curView();
+                if (wv != null) {
+                    wv.reload();
+                }
             }
         });
 
@@ -694,6 +710,7 @@ public class MainActivity extends Activity {
             return false;
         }
         if (lower.startsWith("http://") || lower.startsWith("https://")
+                || lower.startsWith("view-source:")
                 || lower.startsWith("about:") || lower.startsWith("data:")
                 || lower.startsWith("file:")) {
             return false;
@@ -916,68 +933,39 @@ public class MainActivity extends Activity {
     }
 
     private void showSource() {
-        WebView wv = curView();
-        if (wv == null) {
+        String u = curUrl();
+        if (u == null || u.length() == 0) {
+            toast("当前没有打开页面");
             return;
         }
-        if (Build.VERSION.SDK_INT < 19) {
-            toast("系统版本太低，取不到源码");
+        String lower = u.toLowerCase();
+        if (lower.startsWith("view-source:")) {
+            toast("已经在这个页面的源码视图里");
             return;
         }
-        wv.evaluateJavascript("document.documentElement.outerHTML", new ValueCallback<String>() {
-            public void onReceiveValue(String value) {
-                String html = value;
-                if (html == null) {
-                    html = "(空)";
-                } else {
-                    html = html.replace("\\n", "\n")
-                            .replace("\\r", "")
-                            .replace("\\\"", "\"")
-                            .replace("\\/", "/");
-                    if (html.length() > 1 && html.startsWith("\"") && html.endsWith("\"")) {
-                        html = html.substring(1, html.length() - 1);
-                    }
-                }
-
-                EditText viewer = new EditText(MainActivity.this);
-                viewer.setText(html);
-                viewer.setMinLines(8);
-                viewer.setGravity(Gravity.TOP | Gravity.LEFT);
-
-                ScrollView scroll = new ScrollView(MainActivity.this);
-                scroll.addView(viewer);
-
-                new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("页面源码")
-                        .setView(scroll)
-                        .setPositiveButton("关闭", null)
-                        .show();
-            }
-        });
+        if (!(lower.startsWith("http://") || lower.startsWith("https://"))) {
+            toast("这个地址没法看源码");
+            return;
+        }
+        loadInCurrent("view-source:" + u);
     }
 
     private void openGearMenu() {
-        String uaText = desktopUa ? "桌面版 UA：开" : "桌面版 UA：关";
-        String[] items = {"脚本管理", "刷新当前页", "查看页面源码", uaText,
+        String[] items = {"脚本管理", "Wikidot 登录", "Wikidot 论坛",
                 "设置默认首页", "清除 Cookie 与缓存", "关于"};
         new AlertDialog.Builder(this)
-                .setTitle("设置")
+                .setTitle("浏览器设置")
                 .setItems(items, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface d, int which) {
                         if (which == 0) {
                             openManager();
                         } else if (which == 1) {
-                            WebView v = curView();
-                            if (v != null) {
-                                v.reload();
-                            }
+                            wdLogin();
                         } else if (which == 2) {
-                            showSource();
+                            wdForum();
                         } else if (which == 3) {
-                            toggleDesktopUa();
-                        } else if (which == 4) {
                             setHomePage();
-                        } else if (which == 5) {
+                        } else if (which == 4) {
                             clearAll();
                         } else {
                             about();
@@ -1044,15 +1032,16 @@ public class MainActivity extends Activity {
     }
 
     private void openToolbox() {
-        String[] items = {"Wikidot 登录", "Wikidot 论坛"};
+        String uaText = desktopUa ? "桌面版 UA：开" : "桌面版 UA：关";
+        String[] items = {uaText, "查看页面源码"};
         new AlertDialog.Builder(this)
                 .setTitle("工具箱")
                 .setItems(items, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface d, int which) {
                         if (which == 0) {
-                            wdLogin();
+                            toggleDesktopUa();
                         } else {
-                            wdForum();
+                            showSource();
                         }
                     }
                 })
