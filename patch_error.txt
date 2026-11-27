@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/home/runner/work/yytt/yytt/patch_cred.py", line 205, in <module>
+    raise Exception('credPanel count %d' % s.count('credPanel'))
+Exception: credPanel count 2
