@@ -87,7 +87,7 @@ public class MainActivity extends Activity {
     private List<ScriptItem> scripts = new ArrayList<ScriptItem>();
     private boolean globalOn = true;
     private boolean desktopUa = false;
-    private String homeUrl = "about:blank";
+    private String homeUrl = "https://www.wikidot.com";
     private String defaultUa = null;
 
     private LinearLayout root;
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         sp = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         globalOn = sp.getBoolean(KEY_GLOBAL, true);
         desktopUa = sp.getBoolean(KEY_UA, false);
-        homeUrl = sp.getString(KEY_HOME, "about:blank");
+        homeUrl = sp.getString(KEY_HOME, "https://www.wikidot.com");
         scripts = new ArrayList<ScriptItem>();
         loadData();
 
@@ -649,21 +649,12 @@ public class MainActivity extends Activity {
                 }
             }
 
-            public void onReceivedTitle(WebView v, String title) {
-                Tab t = findTab(v);
-                if (t != null && title != null && title.trim().length() > 0) {
-                    t.title = title.trim();
-                }
-                if (v == curView() && !editing) {
-                    updateAddress();
-                }
-            }
-
             public void onPageFinished(WebView v, String url) {
                 Tab t = findTab(v);
                 if (t != null) {
                     t.url = url;
-                    if (t.title == null || t.title.trim().length() == 0) {
+                    if (t.title == null || t.title.trim().length() == 0
+                            || t.title.equals("新标签页")) {
                         t.title = prettyUrl(url);
                     }
                 }
@@ -700,6 +691,16 @@ public class MainActivity extends Activity {
                     if (p >= 100) {
                         progress.setVisibility(View.GONE);
                     }
+                }
+            }
+
+            public void onReceivedTitle(WebView v, String title) {
+                Tab t = findTab(v);
+                if (t != null && title != null && title.trim().length() > 0) {
+                    t.title = title.trim();
+                }
+                if (v == curView() && !editing) {
+                    updateAddress();
                 }
             }
 
@@ -1258,7 +1259,7 @@ public class MainActivity extends Activity {
     private void about() {
         new AlertDialog.Builder(this)
                 .setTitle("关于")
-                .setMessage("yytt 脚本浏览器\n\n顶部一条细栏：左边设置，中间地址胶囊（点一下才进入编辑），右边前往。\n底部一条细栏：工具箱 / 标签页。\n\n配色取自「堆域」站点主题 Liminal CN。")
+                .setMessage("堆域浏览器\n\n顶部一条细栏：左边设置，中间地址胶囊（点一下才进入编辑），右边前往。\n底部一条细栏：工具箱 / 标签页。\n\n配色取自「堆域」站点主题 Liminal CN。")
                 .setPositiveButton("好", null)
                 .show();
     }
