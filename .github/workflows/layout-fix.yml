@@ -3,6 +3,8 @@ on:
   push:
     paths:
       - patch_layout.py
+permissions:
+  contents: write
 jobs:
   patch:
     runs-on: ubuntu-latest
@@ -17,4 +19,4 @@ jobs:
           git config user.email bot@yytt.local
           git add -A
           git diff --cached --quiet || git commit -m "layout: buttons reordered"
-          git push || true
+          git push origin HEAD:main || true
