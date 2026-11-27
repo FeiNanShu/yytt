@@ -37,6 +37,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -75,6 +76,7 @@ public class MainActivity extends Activity {
     private static final String KEY_TABS = "tabs";
     private static final String KEY_TAB_INDEX = "tab_index";
     private static final String KEY_CRED = "creds";
+    private static final String KEY_ASK_ACCOUNT = "ask_account";
 
     private static final String DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -322,6 +324,82 @@ public class MainActivity extends Activity {
         if (!restoreTabs()) {
             addNewTab(homeUrl);
         }
+
+        root.post(new Runnable() {
+            public void run() {
+                maybeAskAccount();
+            }
+        });
+    }
+
+    private void maybeAskAccount() {
+        if (!sp.getBoolean(KEY_ASK_ACCOUNT, true)) {
+            return;
+        }
+        String[] old = loadCred("wikidot.com");
+        if (old != null && old[1].length() > 0) {
+            return;
+        }
+
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(dp(24), dp(24), dp(24), dp(24));
+
+        TextView who = new TextView(this);
+        who.setText("只能用 Wikidot 账号，QQ、Google 等其他账号不行。");
+        who.setTextSize(13);
+        who.setTextColor(C_TXT2);
+        body.addView(who);
+
+        final EditText userBox = new EditText(this);
+        userBox.setHint("Wikidot 用户名");
+        userBox.setSingleLine(true);
+        body.addView(userBox);
+
+        final EditText passBox = new EditText(this);
+        passBox.setHint("密码");
+        passBox.setSingleLine(true);
+        passBox.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        body.addView(passBox);
+
+        final CheckBox noAsk = new CheckBox(this);
+        noAsk.setText("不再弹出");
+        body.addView(noAsk);
+
+        TextView note = new TextView(this);
+        note.setText("登录后所有 wikidot 站点通用。账号密码只存在本机。");
+        note.setTextSize(11);
+        note.setTextColor(C_TXT2);
+        note.setPadding(0, dp(8), 0, 0);
+        body.addView(note);
+
+        new AlertDialog.Builder(this)
+                .setTitle("登录 Wikidot 账号")
+                .setView(body)
+                .setCancelable(false)
+                .setPositiveButton("登录", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface d, int w) {
+                        String u = userBox.getText().toString().trim();
+                        String p = passBox.getText().toString();
+                        if (u.length() == 0 || p.length() == 0) {
+                            toast("用户名和密码都要填");
+                        } else {
+                            saveCred("wikidot.com", u, p);
+                            toast("已绑定 " + u + "，所有 wikidot 站点通用");
+                        }
+                        if (noAsk.isChecked()) {
+                            sp.edit().putBoolean(KEY_ASK_ACCOUNT, false).apply();
+                        }
+                    }
+                })
+                .setNegativeButton("以后再说", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface d, int w) {
+                        if (noAsk.isChecked()) {
+                            sp.edit().putBoolean(KEY_ASK_ACCOUNT, false).apply();
+                        }
+                    }
+                })
+                .show();
     }
 
     private void beginEdit() {
@@ -961,8 +1039,7 @@ public class MainActivity extends Activity {
     }
 
     private void openGearMenu() {
-        String[] items = {"脚本管理", "Wikidot 登录", "Wikidot 论坛", "账号与密码",
-                "设置默认首页", "清除 Cookie 与缓存", "关于"};
+        String[] items = {"脚本管理", "Wikidot 账号登录", "设置默认首页", "清除 Cookie 与缓存", "关于"};
         new AlertDialog.Builder(this)
                 .setTitle("浏览器设置")
                 .setItems(items, new DialogInterface.OnClickListener() {
@@ -970,14 +1047,10 @@ public class MainActivity extends Activity {
                         if (which == 0) {
                             openManager();
                         } else if (which == 1) {
-                            wdLogin();
-                        } else if (which == 2) {
-                            wdForum();
-                        } else if (which == 3) {
                             credPanel();
-                        } else if (which == 4) {
+                        } else if (which == 2) {
                             setHomePage();
-                        } else if (which == 5) {
+                        } else if (which == 3) {
                             clearAll();
                         } else {
                             about();
@@ -1102,7 +1175,13 @@ public class MainActivity extends Activity {
             return;
         }
         String host = hostOf(url);
+        if (!host.endsWith("wikidot.com")) {
+            return;
+        }
         String[] cr = loadCred(host);
+        if (cr == null) {
+            cr = loadCred("wikidot.com");
+        }
         if (cr == null) {
             return;
         }
@@ -1119,11 +1198,7 @@ public class MainActivity extends Activity {
     }
 
     private void credPanel() {
-        final String host = hostOf(curUrl());
-        if (host.length() == 0) {
-            toast("先打开要保存密码的站点");
-            return;
-        }
+        final String host = "wikidot.com";
         String[] old = loadCred(host);
 
         LinearLayout body = new LinearLayout(this);
@@ -1131,13 +1206,13 @@ public class MainActivity extends Activity {
         body.setPadding(dp(24), dp(24), dp(24), dp(24));
 
         TextView who = new TextView(this);
-        who.setText("站点：" + host);
+        who.setText("只支持 Wikidot 账号。登录后所有 wikidot 站点自动通行，登录页也会自动填好。");
         who.setTextSize(13);
         who.setTextColor(C_TXT2);
         body.addView(who);
 
         final EditText userBox = new EditText(this);
-        userBox.setHint("用户名");
+        userBox.setHint("Wikidot 用户名");
         userBox.setSingleLine(true);
         if (old != null) {
             userBox.setText(old[0]);
@@ -1154,26 +1229,26 @@ public class MainActivity extends Activity {
         body.addView(passBox);
 
         TextView note = new TextView(this);
-        note.setText("保存后这个站点的登录页会自动填好，密码只存在本机，不上传。");
+        note.setText("账号密码只存在本机，不上传。");
         note.setTextSize(11);
         note.setTextColor(C_TXT2);
         note.setPadding(0, dp(8), 0, 0);
         body.addView(note);
 
         new AlertDialog.Builder(this)
-                .setTitle("账号与密码")
+                .setTitle("Wikidot 账号登录")
                 .setView(body)
                 .setPositiveButton("保存", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface d, int w) {
                         saveCred(host, userBox.getText().toString().trim(),
                                 passBox.getText().toString());
-                        toast("已保存，下次这家站点的登录页会自动填");
+                        toast("已保存 Wikidot 账号");
                     }
                 })
                 .setNeutralButton("清除", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface d, int w) {
                         saveCred(host, "", "");
-                        toast("已清除这家站点的密码");
+                        toast("已清除 Wikidot 账号");
                     }
                 })
                 .setNegativeButton("取消", null)

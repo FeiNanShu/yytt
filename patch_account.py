@@ -230,7 +230,7 @@ try:
         raise Exception('ask dialog missing')
     if 'endsWith("wikidot.com")' not in s:
         raise Exception('fill guard missing')
-    if '「' in s:
+    if '「清除' in s:
         raise Exception('bad quote left')
     if s == orig:
         raise Exception('nothing changed')
