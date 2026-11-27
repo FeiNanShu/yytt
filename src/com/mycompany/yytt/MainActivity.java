@@ -87,7 +87,7 @@ public class MainActivity extends Activity {
     private List<ScriptItem> scripts = new ArrayList<ScriptItem>();
     private boolean globalOn = true;
     private boolean desktopUa = false;
-    private String homeUrl = "https://www.wikidot.com";
+    private String homeUrl = "";
     private String defaultUa = null;
 
     private LinearLayout root;
@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         sp = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         globalOn = sp.getBoolean(KEY_GLOBAL, true);
         desktopUa = sp.getBoolean(KEY_UA, false);
-        homeUrl = sp.getString(KEY_HOME, "https://www.wikidot.com");
+        homeUrl = sp.getString(KEY_HOME, "");
         scripts = new ArrayList<ScriptItem>();
         loadData();
 
@@ -491,6 +491,26 @@ public class MainActivity extends Activity {
         return null;
     }
 
+    private void loadWelcome(WebView wv) {
+        if (wv == null) {
+            return;
+        }
+        String html = "<!doctype html><html><head><title>堆域浏览器</title>"
+                + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                + "<style>body{margin:0;background:#FCFDFF;color:#122337;"
+                + "font-family:sans-serif;display:flex;align-items:center;"
+                + "justify-content:center;height:100vh}"
+                + ".box{text-align:center;padding:0 28px}"
+                + "h1{font-size:22px;margin:0 0 12px;color:#1B64BF}"
+                + "p{font-size:13px;color:#3A526C;line-height:1.9;margin:0 0 24px}"
+                + "a{display:inline-block;padding:12px 28px;border-radius:20px;"
+                + "background:#4691DC;color:#fff;text-decoration:none;font-size:14px}"
+                + "</style></head><body><div class='box'><h1>堆域浏览器</h1>"
+                + "<p>为 Backrooms 与 SCP 的 Wikidot 站点准备<br>点下面的按钮，输入一个站点地址</p>"
+                + "<a href='yytt://addr'>输入地址</a></div></body></html>";
+        wv.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
+    }
+
     private Tab createTab(String url) {
         WebView wv = new WebView(this);
         setupWebView(wv);
@@ -499,8 +519,10 @@ public class MainActivity extends Activity {
         t.url = url == null ? "" : url;
         t.title = "新标签页";
         tabs.add(t);
-        if (url != null && url.length() > 0) {
+        if (url != null && url.length() > 0 && !"about:blank".equals(url)) {
             wv.loadUrl(url);
+        } else {
+            loadWelcome(wv);
         }
         return t;
     }
@@ -797,6 +819,10 @@ public class MainActivity extends Activity {
         String lower = url.toLowerCase();
         if (lower.startsWith("javascript:")) {
             return false;
+        }
+        if (lower.startsWith("yytt://")) {
+            beginEdit();
+            return true;
         }
         if (lower.startsWith("http://") || lower.startsWith("https://")
                 || lower.startsWith("view-source:")
