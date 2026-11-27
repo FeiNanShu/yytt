@@ -1,0 +1,30 @@
+name: build-desktop
+on:
+  push:
+    paths:
+      - 'desktop-java/**'
+      - '.github/workflows/build-desktop.yml'
+  workflow_dispatch:
+jobs:
+  win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: build jar
+        run: mvn -B -f desktop-java/pom.xml package -DskipTests
+      - name: jpackage
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          jpackage --input desktop-java/target --main-jar duiyu-browser.jar --main-class com.feinanshu.Launcher --type app-image --name DuiyuBrowser --dest dist
+      - name: zip
+        shell: pwsh
+        run: Compress-Archive -Path dist/DuiyuBrowser/* -DestinationPath duiyu-browser-win.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: duiyu-browser-win
+          path: duiyu-browser-win.zip
