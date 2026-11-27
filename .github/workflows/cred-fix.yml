@@ -1,0 +1,22 @@
+name: cred-fix
+on:
+  push:
+    paths:
+      - patch_cred.py
+permissions:
+  contents: write
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: patch
+        run: python3 patch_cred.py || true
+      - name: commit
+        if: always()
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add -A
+          git diff --cached --quiet || git commit -m "账号密码：本机保存 + 登录页自动填充"
+          git push origin HEAD:main || true
