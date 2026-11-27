@@ -633,6 +633,9 @@ public class MainActivity extends Activity {
         s.setSupportMultipleWindows(true);
         s.setUseWideViewPort(true);
         s.setLoadWithOverviewMode(true);
+        s.setSupportZoom(true);
+        s.setBuiltInZoomControls(true);
+        s.setDisplayZoomControls(false);
         s.setAllowFileAccess(true);
         s.setDatabaseEnabled(true);
         if (defaultUa == null) {
@@ -1292,12 +1295,16 @@ public class MainActivity extends Activity {
 
     private void openToolbox() {
         String uaText = desktopUa ? "桌面版 UA：开" : "桌面版 UA：关";
-        String[] items = {uaText, "查看页面源码"};
+        String[] items = {"放大页面", "缩小页面", uaText, "查看页面源码"};
         new AlertDialog.Builder(this)
                 .setTitle("工具箱")
                 .setItems(items, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface d, int which) {
                         if (which == 0) {
+                            zoomPage(true);
+                        } else if (which == 1) {
+                            zoomPage(false);
+                        } else if (which == 2) {
                             toggleDesktopUa();
                         } else {
                             showSource();
@@ -1305,6 +1312,21 @@ public class MainActivity extends Activity {
                     }
                 })
                 .show();
+    }
+
+    private void zoomPage(boolean bigger) {
+        WebView v = curView();
+        if (v == null) {
+            return;
+        }
+        try {
+            if (bigger) {
+                v.zoomIn();
+            } else {
+                v.zoomOut();
+            }
+        } catch (Exception e) {
+        }
     }
 
     private boolean isWikidotSite() {
