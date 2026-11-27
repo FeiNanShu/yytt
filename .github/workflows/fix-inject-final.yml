@@ -1,0 +1,24 @@
+name: fix-inject-final
+on:
+  push:
+    paths:
+      - .github/workflows/fix-inject-final.yml
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: patch
+        run: |
+          F=src/com/mycompany/yytt/MainActivity.java
+          sed -i 's/private void inject(WebView wv, String code)/private void inject(final WebView wv, final String code)/' "$F"
+          grep -n "private void inject" "$F"
+      - name: commit
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add -A
+          git diff --cached --quiet || git commit -m "fix: inject 参数加 final（Java 7 内部类捕获）"
+          git push || true
