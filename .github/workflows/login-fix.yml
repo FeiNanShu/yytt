@@ -1,0 +1,22 @@
+name: login-fix
+on:
+  push:
+    paths:
+      - .github/workflows/login-fix.yml
+permissions:
+  contents: write
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: patch
+        run: python3 patch_login.py
+      - name: commit
+        if: always()
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add -A
+          git diff --cached --quiet || git commit -m "修复登录误判：改为 cookie 与登出链接判定；登录窗口改圆角弹窗"
+          git push || true
