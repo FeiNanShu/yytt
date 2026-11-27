@@ -77,8 +77,6 @@ public class MainActivity extends Activity {
 
     private static final String DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-    private static final String JS_LOGIN_CHECK = "(function(){var as=document.getElementsByTagName('a');for(var i=0;i<as.length;i++){var h=as[i].href||'';if(h.indexOf('account/logout')>=0)return 'yes';}var t=document.getElementById('account-topbutton');if(t&&(t.textContent||'').indexOf('|')>=0)return 'yes';return 'no';})()";
-
     private static final int REQ_PICK_FILE = 1001;
     private static final int REQ_STORAGE = 2002;
 
@@ -106,6 +104,7 @@ public class MainActivity extends Activity {
     private AlertDialog managerDialog = null;
     private Handler loginHandler = null;
     private boolean loginDone = false;
+    private String loginBaseline = null;
 
     private ValueCallback<Uri[]> fileCallback = null;
     private String dlUrl = null;
@@ -1080,6 +1079,8 @@ public class MainActivity extends Activity {
     }
 
     private void wdLogin() {
+        loginBaseline = CookieManager.getInstance().getCookie("https://www.wikidot.com");
+
         final Dialog dlg = new Dialog(this);
         dlg.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
@@ -1119,7 +1120,7 @@ public class MainActivity extends Activity {
         box.addView(login, new LinearLayout.LayoutParams(MATCH, 0, 1));
 
         TextView tip = new TextView(this);
-        tip.setText("登录成功后会自动检测并关掉这个窗口");
+        tip.setText("登录状态一旦落到 cookie 上，这里会自动关掉");
         tip.setTextSize(11);
         tip.setTextColor(C_TXT2);
         tip.setGravity(Gravity.CENTER);
@@ -1157,10 +1158,10 @@ public class MainActivity extends Activity {
         login.loadUrl("https://www.wikidot.com/account/login");
         loginDone = false;
         dlg.show();
-        pollLogin(dlg, login);
+        pollLogin(dlg);
     }
 
-    private void pollLogin(final Dialog dlg, final WebView login) {
+    private void pollLogin(final Dialog dlg) {
         stopLoginPoll();
         final Handler h = new Handler();
         loginHandler = h;
@@ -1170,43 +1171,53 @@ public class MainActivity extends Activity {
                 if (loginDone || dlg == null || !dlg.isShowing()) {
                     return;
                 }
-                if (hasWikidotSession()) {
+                String now = null;
+                try {
+                    now = CookieManager.getInstance().getCookie("https://www.wikidot.com");
+                } catch (Exception e) {
+                    now = null;
+                }
+                if (loginCookieChanged(loginBaseline, now)) {
                     loginSuccess(dlg);
                     return;
                 }
-                if (Build.VERSION.SDK_INT < 19) {
-                    h.postDelayed(task[0], 1500);
-                    return;
-                }
-                login.evaluateJavascript(JS_LOGIN_CHECK, new ValueCallback<String>() {
-                    public void onReceiveValue(String value) {
-                        if (loginDone || !dlg.isShowing()) {
-                            return;
-                        }
-                        String txt = jsonToText(value);
-                        if (txt.indexOf("yes") >= 0) {
-                            loginSuccess(dlg);
-                            return;
-                        }
-                        h.postDelayed(task[0], 1500);
-                    }
-                });
+                h.postDelayed(task[0], 400);
             }
         };
-        h.postDelayed(task[0], 1500);
+        h.postDelayed(task[0], 400);
     }
 
-    private boolean hasWikidotSession() {
-        try {
-            String c = CookieManager.getInstance().getCookie("https://www.wikidot.com");
-            if (c == null || c.length() == 0) {
-                return false;
-            }
-            String lower = c.toLowerCase();
-            return lower.indexOf("wikidot_token7") >= 0 || lower.indexOf("wikidot_session") >= 0;
-        } catch (Exception e) {
-            return false;
+    private String cookieVal(String cookie, String key) {
+        if (cookie == null || cookie.length() == 0) {
+            return null;
         }
+        String[] parts = cookie.split(";");
+        for (int i = 0; i < parts.length; i++) {
+            String p = parts[i].trim();
+            int eq = p.indexOf('=');
+            if (eq <= 0) {
+                continue;
+            }
+            String name = p.substring(0, eq).trim();
+            if (name.equalsIgnoreCase(key)) {
+                return p.substring(eq + 1).trim();
+            }
+        }
+        return null;
+    }
+
+    private boolean loginCookieChanged(String before, String now) {
+        String b = cookieVal(before, "wikidot_token7");
+        String n = cookieVal(now, "wikidot_token7");
+        if (n != null && n.length() > 0 && !n.equals(b)) {
+            return true;
+        }
+        String b2 = cookieVal(before, "wikidot_session");
+        String n2 = cookieVal(now, "wikidot_session");
+        if (n2 != null && n2.length() > 0 && !n2.equals(b2)) {
+            return true;
+        }
+        return false;
     }
 
     private void loginSuccess(Dialog dlg) {
