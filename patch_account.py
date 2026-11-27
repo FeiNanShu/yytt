@@ -20,7 +20,7 @@ try:
         s = s[:a] + new + s[b:]
 
     swap('    private void openGearMenu() {', '    private void toggleDesktopUa() {', '''    private void openGearMenu() {
-        String[] items = {"脚本管理", "Wikidot 账号登录", "设置默认首页", 「清除 Cookie 与缓存」, "关于"};
+        String[] items = {"脚本管理", "Wikidot 账号登录", "设置默认首页", "清除 Cookie 与缓存", "关于"};
         new AlertDialog.Builder(this)
                 .setTitle("浏览器设置")
                 .setItems(items, new DialogInterface.OnClickListener() {
@@ -224,14 +224,14 @@ try:
     }
 ''', 1)
 
-    if '「清除 Cookie 与缓存」' in s:
-        raise Exception('bad quote left')
     if 'Wikidot 账号登录' not in s:
         raise Exception('new menu missing')
     if 'maybeAskAccount' not in s:
         raise Exception('ask dialog missing')
     if 'endsWith("wikidot.com")' not in s:
         raise Exception('fill guard missing')
+    if '「' in s:
+        raise Exception('bad quote left')
     if s == orig:
         raise Exception('nothing changed')
 
