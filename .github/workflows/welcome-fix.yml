@@ -1,0 +1,22 @@
+name: welcome-fix
+on:
+  push:
+    paths:
+      - patch_welcome.py
+permissions:
+  contents: write
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: patch
+        run: python3 patch_welcome.py || true
+      - name: commit
+        if: always()
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add -A
+          git diff --cached --quiet || git commit -m "新标签页改为本地欢迎页"
+          git push origin HEAD:main || true
