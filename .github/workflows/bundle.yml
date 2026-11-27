@@ -1,0 +1,28 @@
+name: bundle
+on:
+  push:
+    paths:
+      - '.github/workflows/bundle.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  b:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: make bundle
+        run: |
+          git bundle create yytt.bundle --all
+          git archive --format=zip -o yytt-src.zip HEAD
+          ls -lh yytt.bundle yytt-src.zip
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: bundle
+          name: 堆域浏览器 源码备份
+          body: git bundle 与源码 zip，点一下直接下载。
+          files: |
+            yytt.bundle
+            yytt-src.zip
