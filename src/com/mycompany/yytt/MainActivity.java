@@ -530,19 +530,27 @@ public class MainActivity extends Activity {
         if (wv == null) {
             return;
         }
+        String b64 = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABgBAMAAAAQtmoLAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAG1BMVEUAAAAAESIAM2YRVbsRRIgRVZkAIkQRM3cAETNA2M+NAAAAAWJLR0QAiAUdSAAAAAd0SU1FB+oLHAUZOKPdmB8AAAJPSURBVFjD7ZVNb9pAEIZ3LWN6XAN2rkahqFcYu1yxV6AcU5w0VxsRpUekNve0qvq7O/uBv7Jg55BL5PeEvfPsOzPrHQjp1atXr17vIsreGGWF0/b4EQ9KAGCX15ev4vqz8wxQAyDaVvMapVHVlB5SaAIA4ZcCcXA9yor1/UYGNAGAROf1icsNNOH/0suvAYgSYUKv1dOKFdmcAwDuMfXH08OOYW/KtWNZ06Z8Oy3jAb5X93qoduXPaaOYTKCiG+LpX5WWKJMnmepXbKio5QlgK3/EyrDedFlG7n/GhVtHhk0xk2AkIwNbFJP7QQMYQOL6G1iP1bYCIH8FsbAhnLqz9PYVANHcPRw9WaoCZDYLa+vu0dYAANzlbCybqQGCWS6oL3toBDBqDCEjBUA5OqiVbw3AVq+xhhUpAXItagCTg1cASzI/AYcLwKDikMbic83IJGIlsG4ARB3c2oMl5fhlTwQUFQ7RvHlweAdmhYPazobCIflNDKL/NqoGDkcnc7IhaIe7H8wUT+zE3WNbVxQdhiE/4hELwJq7s7UZEJnqlESXhioluudwDtBt1YCtUhqaWlQCXulg4aHromMjMNAOWMOxkpJ92UHUwIsaSDuAKVFeK9o2fBdKFi+K1imF2uE+MAJ41qkxpeSFnJMfeGVbdUpOTi7J4RKgP0MmTzp8IS1yHrCtO+ZkeD8j9py1xRPiYg2wlRMgYm57PErcjJuDmHadwvFmiiuTqnnTTY+nUdxVVExNWLLOgJhHaj51lsMrf3Gd5L8xvlevXr0+sP4D8Miuq6RN728AAAAldEVYdGRhdGU6Y3JlYXRlADIwMjYtMTEtMjhUMDU6MjU6NTUrMDA6MDDSdWixAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDI2LTExLTI4VDA1OjI1OjU1KzAwOjAwoyjQDQAAAABJRU5ErkJggg==";
         String html = "<!doctype html><html><head><title>堆域浏览器</title>"
                 + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
                 + "<style>body{margin:0;background:#FCFDFF;color:#122337;"
-                + "font-family:sans-serif;display:flex;align-items:center;"
-                + "justify-content:center;height:100vh}"
-                + ".box{text-align:center;padding:0 28px}"
-                + "h1{font-size:22px;margin:0 0 12px;color:#1B64BF}"
-                + "p{font-size:13px;color:#3A526C;line-height:1.9;margin:0 0 24px}"
-                + "a{display:inline-block;padding:12px 28px;border-radius:20px;"
-                + "background:#4691DC;color:#fff;text-decoration:none;font-size:14px}"
-                + "</style></head><body><div class='box'><h1>堆域浏览器</h1>"
-                + "<p>为 Backrooms 与 SCP 的 Wikidot 站点准备<br>点下面的按钮，输入站点地址或直接输入关键词</p>"
-                + "<a href='yytt://addr'>输入地址</a></div></body></html>";
+                + "font-family:sans-serif;display:flex;flex-direction:column;"
+                + "align-items:center;justify-content:center;height:100vh}"
+                + "img{width:96px;height:96px;margin:0 0 18px}"
+                + "h1{font-size:21px;margin:0 0 34px;color:#1B64BF;letter-spacing:5px;font-weight:600}"
+                + ".circles{display:flex;gap:16px}"
+                + "a.c{width:74px;height:74px;border-radius:50%;background:#E8F5FC;"
+                + "border:1px solid #A4C1D7;display:flex;align-items:center;justify-content:center;"
+                + "text-decoration:none;color:#1B64BF;font-size:13px}"
+                + "a.plus{font-size:28px}"
+                + "</style></head><body>"
+                + "<img src='data:image/png;base64," + b64 + "'>"
+                + "<h1>堆域浏览器</h1>"
+                + "<div class='circles'>"
+                + "<a class='c' href='https://scp-wiki-cn.wikidot.com'>SCP</a>"
+                + "<a class='c' href='https://backrooms-wiki-cn.wikidot.com'>后室</a>"
+                + "<a class='c plus' href='yytt://addr'>+</a>"
+                + "</div></body></html>";
         wv.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
     }
 
@@ -906,7 +914,6 @@ public class MainActivity extends Activity {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
         } catch (Exception e) {
-            toast("打不开这个链接：" + url);
         }
         return true;
     }
@@ -1298,7 +1305,7 @@ public class MainActivity extends Activity {
         body.setPadding(dp(24), dp(24), dp(24), dp(24));
 
         TextView who = new TextView(this);
-        who.setText("只支持 Wikidot 账号。登录后所有 wikidot 站点自动通行，登录页也会自动填好。");
+        who.setText("请输入正确的 Wikidot 账号和密码。");
         who.setTextSize(13);
         who.setTextColor(C_TXT2);
         body.addView(who);
