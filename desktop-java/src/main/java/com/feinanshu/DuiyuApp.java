@@ -66,7 +66,7 @@ public class DuiyuApp extends Application {
         "<!doctype html><html><head><meta charset='utf-8'><style>"
         + "html,body{margin:0;height:100%;background:#FCFDFF;}"
         + "body{display:flex;flex-direction:column;align-items:center;justify-content:center;"
-        + "font-family:'Microsoft YaHei','Segoe UI',sans-serif;color:#122337;}"
+        + "font-family:'Segoe UI',sans-serif;color:#122337;}"
         + "img{width:96px;height:96px;margin:0 0 18px;}"
         + "h1{font-size:22px;letter-spacing:5px;margin:0 0 34px;color:#1B64BF;font-weight:600;}"
         + ".circles{display:flex;gap:16px;}"
@@ -121,7 +121,7 @@ public class DuiyuApp extends Application {
     public void start(Stage stage) {
         this.stage = stage;
         BorderPane root = new BorderPane();
-        root.setStyle("-fx-background-color: " + C_BG + "; -fx-font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;");
+        root.setStyle("-fx-background-color: " + C_BG + ";");
         root.setTop(topBar());
         holder = new StackPane();
         holder.setStyle("-fx-background-color: " + C_BG + ";");
