@@ -378,7 +378,7 @@ public class MainActivity extends Activity {
         body.setPadding(dp(24), dp(24), dp(24), dp(24));
 
         TextView who = new TextView(this);
-        who.setText("只能用 Wikidot 账号，QQ、Google 等其他账号不行。");
+        who.setText("请登录 Wikidot 账号");
         who.setTextSize(13);
         who.setTextColor(C_TXT2);
         body.addView(who);
@@ -1326,13 +1326,6 @@ public class MainActivity extends Activity {
             passBox.setText(old[1]);
         }
         body.addView(passBox);
-
-        TextView note = new TextView(this);
-        note.setText("账号密码只存在本机，不上传。");
-        note.setTextSize(11);
-        note.setTextColor(C_TXT2);
-        note.setPadding(0, dp(8), 0, 0);
-        body.addView(note);
 
         new AlertDialog.Builder(this)
                 .setTitle("Wikidot 账号登录")
