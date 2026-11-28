@@ -1,0 +1,20 @@
+name: desk
+on:
+  push:
+    paths:
+      - patch_desk.py
+permissions:
+  contents: write
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 patch_desk.py || true
+      - if: always()
+        run: |
+          git config user.name bot
+          git config user.email bot@local
+          git add -A
+          git diff --cached --quiet || git commit -m "feat(desktop): 主页 logo、站点圆钮、前进后退"
+          git push origin HEAD:main || true
