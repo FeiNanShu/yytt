@@ -60,21 +60,27 @@ public class DuiyuApp extends Application {
 
     static final String HOME_LABEL = "新标签页";
 
+    static final String LOGO_B64 = "iVBORw0KGgoAAAANSUhEUgAAAGAAAABgBAMAAAAQtmoLAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAG1BMVEUAAAAAESIAM2YRVbsRRIgRVZkAIkQRM3cAETNA2M+NAAAAAWJLR0QAiAUdSAAAAAd0SU1FB+oLHAUZOKPdmB8AAAJPSURBVFjD7ZVNb9pAEIZ3LWN6XAN2rkahqFcYu1yxV6AcU5w0VxsRpUekNve0qvq7O/uBv7Jg55BL5PeEvfPsOzPrHQjp1atXr17vIsreGGWF0/b4EQ9KAGCX15ev4vqz8wxQAyDaVvMapVHVlB5SaAIA4ZcCcXA9yor1/UYGNAGAROf1icsNNOH/0suvAYgSYUKv1dOKFdmcAwDuMfXH08OOYW/KtWNZ06Z8Oy3jAb5X93qoduXPaaOYTKCiG+LpX5WWKJMnmepXbKio5QlgK3/EyrDedFlG7n/GhVtHhk0xk2AkIwNbFJP7QQMYQOL6G1iP1bYCIH8FsbAhnLqz9PYVANHcPRw9WaoCZDYLa+vu0dYAANzlbCybqQGCWS6oL3toBDBqDCEjBUA5OqiVbw3AVq+xhhUpAXItagCTg1cASzI/AYcLwKDikMbic83IJGIlsG4ARB3c2oMl5fhlTwQUFQ7RvHlweAdmhYPazobCIflNDKL/NqoGDkcnc7IhaIe7H8wUT+zE3WNbVxQdhiE/4hELwJq7s7UZEJnqlESXhioluudwDtBt1YCtUhqaWlQCXulg4aHromMjMNAOWMOxkpJ92UHUwIsaSDuAKVFeK9o2fBdKFi+K1imF2uE+MAJ41qkxpeSFnJMfeGVbdUpOTi7J4RKgP0MmTzp8IS1yHrCtO+ZkeD8j9py1xRPiYg2wlRMgYm57PErcjJuDmHadwvFmiiuTqnnTTY+nUdxVVExNWLLOgJhHaj51lsMrf3Gd5L8xvlevXr0+sP4D8Miuq6RN728AAAAldEVYdGRhdGU6Y3JlYXRlADIwMjYtMTEtMjhUMDU6MjU6NTUrMDA6MDDSdWixAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDI2LTExLTI4VDA1OjI1OjU1KzAwOjAwoyjQDQAAAABJRU5ErkJggg==";
+
     static final String WELCOME =
         "<!doctype html><html><head><meta charset='utf-8'><style>"
         + "html,body{margin:0;height:100%;background:#FCFDFF;}"
         + "body{display:flex;flex-direction:column;align-items:center;justify-content:center;"
         + "font-family:'Microsoft YaHei','Segoe UI',sans-serif;color:#122337;}"
-        + "h1{font-size:26px;letter-spacing:5px;margin:0 0 8px;color:#1B64BF;font-weight:600;}"
-        + "p{font-size:13px;color:#3A526C;margin:0 0 26px;}"
-        + ".tip{font-size:12px;color:#3A526C;margin-top:14px;}"
-        + ".b{display:inline-block;padding:3px 10px;border:1px solid #A4C1D7;border-radius:12px;background:#E8F5FC;}"
+        + "img{width:96px;height:96px;margin:0 0 18px;}"
+        + "h1{font-size:22px;letter-spacing:5px;margin:0 0 34px;color:#1B64BF;font-weight:600;}"
+        + ".circles{display:flex;gap:16px;}"
+        + "a.c{width:76px;height:76px;border-radius:50%;background:#E8F5FC;border:1px solid #A4C1D7;"
+        + "display:flex;align-items:center;justify-content:center;text-decoration:none;color:#1B64BF;font-size:13px;}"
+        + "a.plus{font-size:28px;}"
         + "</style></head><body>"
+        + "<img src='data:image/png;base64," + LOGO_B64 + "'>"
         + "<h1>堆域浏览器</h1>"
-        + "<p>Wikidot 专用 · 后室 / SCP</p>"
-        + "<div class='tip'>点上面的地址褡，粘贴站点链接就开始</div>"
-        + "<div class='tip'>比如 <span class='b'>scp-wiki-cn.wikidot.com</span></div>"
-        + "</body></html>";
+        + "<div class='circles'>"
+        + "<a class='c' href='https://scp-wiki-cn.wikidot.com'>SCP</a>"
+        + "<a class='c' href='https://backrooms-wiki-cn.wikidot.com'>后室</a>"
+        + "<a class='c plus' href='yytt://addr'>+</a>"
+        + "</div></body></html>";
 
     private final List<Tab> tabs = new ArrayList<>();
     private Tab current;
@@ -206,9 +212,23 @@ public class DuiyuApp extends Application {
         tabBtn = barBtn("⧉  标签页");
         tabBtn.setOnAction(e -> tabsPanel());
 
+        Button back = flat("←", 44);
+        back.setOnAction(e2 -> {
+            javafx.scene.web.WebHistory h = current == null ? null : current.view.getEngine().getHistory();
+            if (h != null && h.getCurrentIndex() > 0) {
+                h.go(-1);
+            }
+        });
+        Button fwd = flat("→", 44);
+        fwd.setOnAction(e2 -> {
+            javafx.scene.web.WebHistory h = current == null ? null : current.view.getEngine().getHistory();
+            if (h != null && h.getCurrentIndex() < h.getEntries().size() - 1) {
+                h.go(1);
+            }
+        });
         HBox.setHgrow(tools, Priority.ALWAYS);
         HBox.setHgrow(tabBtn, Priority.ALWAYS);
-        row.getChildren().addAll(tools, tabBtn);
+        row.getChildren().addAll(back, fwd, tools, tabBtn);
         return row;
     }
 
@@ -244,6 +264,14 @@ public class DuiyuApp extends Application {
     private Tab newTab(String url) {
         Tab t = new Tab();
         WebEngine e = t.view.getEngine();
+        e.locationProperty().addListener((o, a2, b2) -> {
+            if (b2 != null && b2.startsWith("yytt://")) {
+                javafx.application.Platform.runLater(() -> {
+                    welcome(t);
+                    beginEdit();
+                });
+            }
+        });
         e.titleProperty().addListener((o, a, b) -> {
             if (b != null && !b.trim().isEmpty()) {
                 t.title = b.trim();
@@ -480,7 +508,7 @@ public class DuiyuApp extends Application {
         PasswordField p = new PasswordField();
         u.setPrefWidth(220);
         p.setPrefWidth(220);
-        g.add(new Label("只存 Wikidot 账号，到登录页会自动填上"), 0, 0, 2, 1);
+        g.add(new Label("请输入正确的 Wikidot 账号和密码"), 0, 0, 2, 1);
         g.add(new Label("用户名"), 0, 1);
         g.add(u, 1, 1);
         g.add(new Label("密码"), 0, 2);
