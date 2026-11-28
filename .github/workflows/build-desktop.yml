@@ -23,7 +23,7 @@ jobs:
       - name: check encoding
         shell: pwsh
         run: |
-          python -c "import zipfile;z=zipfile.ZipFile('desktop-java/target/duiyu-browser.jar');d=z.read('com/feinanshu/DuiyuApp.class');print('CJK_OK' if '工具箱'.encode('utf-8') in d else 'MOJIBAKE_DETECTED')"
+          python -c "import zipfile;z=zipfile.ZipFile('desktop-java/target/duiyu-browser.jar');d=z.read('com/feinanshu/DuiyuApp.class');print('CJK_OK' if '\u5de5\u4f5b\u7bb8'.encode('utf-8') in d else 'MOJIBAKE')"
       - name: jpackage
         shell: pwsh
         run: |
