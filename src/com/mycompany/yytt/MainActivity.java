@@ -100,6 +100,8 @@ public class MainActivity extends Activity {
     private TextView goBtn;
     private TextView toolsBtn;
     private TextView tabsBtn;
+    private TextView backBtn;
+    private TextView fwdBtn;
 
     private List<Tab> tabs = new ArrayList<Tab>();
     private Tab current = null;
@@ -248,6 +250,12 @@ public class MainActivity extends Activity {
         bottom.setBackgroundColor(C_BAR);
         bottom.setPadding(dp(2), 0, dp(2), 0);
 
+        backBtn = textBtn("←", 18, C_TXT2);
+        bottom.addView(backBtn, new LinearLayout.LayoutParams(dp(44), dp(48)));
+
+        fwdBtn = textBtn("→", 18, C_TXT2);
+        bottom.addView(fwdBtn, new LinearLayout.LayoutParams(dp(44), dp(48)));
+
         toolsBtn = textBtn("▤ 工具箱", 12, C_TXT2);
         bottom.addView(toolsBtn, new LinearLayout.LayoutParams(0, dp(48), 1));
 
@@ -273,6 +281,30 @@ public class MainActivity extends Activity {
         tabsBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 openTabsPanel();
+            }
+        });
+
+        backBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (editing) {
+                    endEdit();
+                }
+                WebView wv = curView();
+                if (wv != null && wv.canGoBack()) {
+                    wv.goBack();
+                }
+            }
+        });
+
+        fwdBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (editing) {
+                    endEdit();
+                }
+                WebView wv = curView();
+                if (wv != null && wv.canGoForward()) {
+                    wv.goForward();
+                }
             }
         });
 
