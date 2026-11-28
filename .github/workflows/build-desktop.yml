@@ -18,6 +18,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - name: fetch font
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path desktop-java/src/main/resources/fonts | Out-Null
+          curl.exe -sL -o desktop-java/src/main/resources/fonts/NotoSansCJKsc-Regular.otf "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf"
+          Get-Item desktop-java/src/main/resources/fonts/NotoSansCJKsc-Regular.otf | Select-Object Length | Format-List
       - name: build jar
         run: mvn -B -f desktop-java/pom.xml package -DskipTests -Dfile.encoding=UTF-8 -Dproject.build.sourceEncoding=UTF-8
       - name: jpackage
@@ -28,10 +34,6 @@ jobs:
       - name: zip
         shell: pwsh
         run: Compress-Archive -Path dist/DuiyuBrowser/* -DestinationPath duiyu-browser-win.zip
-      - name: size
-        if: always()
-        shell: pwsh
-        run: Get-ChildItem duiyu-browser-win.zip | Select-Object Length, LastWriteTime | Format-List
       - uses: actions/upload-artifact@v4
         if: always()
         with:
