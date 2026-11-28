@@ -30,7 +30,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           jpackage --input desktop-java/target --main-jar duiyu-browser.jar --main-class com.feinanshu.Launcher --type app-image --name DuiyuBrowser --dest dist
       - name: zip
-        shell: pwwsh
+        shell: pwsh
         run: Compress-Archive -Path dist/DuiyuBrowser/* -DestinationPath duiyu-browser-win.zip
       - uses: actions/upload-artifact@v4
         if: always()
