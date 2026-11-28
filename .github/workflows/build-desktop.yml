@@ -24,10 +24,14 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          jpackage --input desktop-java/target --main-jar duiyu-browser.jar --main-class com.feinanshu.Launcher --type app-image --name DuiyuBrowser --dest dist --java-options "-Dfile.encoding=UTF-8" --java-options "-Dsun.jnu.encoding=UTF-8" --java-options "-Dprism.lcdtext=false"
+          jpackage --input desktop-java/target --main-jar duiyu-browser.jar --main-class com.feinanshu.Launcher --type app-image --name DuiyuBrowser --dest dist
       - name: zip
         shell: pwsh
         run: Compress-Archive -Path dist/DuiyuBrowser/* -DestinationPath duiyu-browser-win.zip
+      - name: size
+        if: always()
+        shell: pwsh
+        run: Get-ChildItem duiyu-browser-win.zip | Select-Object Length, LastWriteTime | Format-List
       - uses: actions/upload-artifact@v4
         if: always()
         with:
