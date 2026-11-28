@@ -20,15 +20,11 @@ jobs:
           java-version: '21'
       - name: build jar
         run: mvn -B -f desktop-java/pom.xml package -DskipTests -Dfile.encoding=UTF-8 -Dproject.build.sourceEncoding=UTF-8
-      - name: check encoding
-        shell: pwsh
-        run: |
-          python -c "import zipfile;z=zipfile.ZipFile('desktop-java/target/duiyu-browser.jar');d=z.read('com/feinanshu/DuiyuApp.class');print('CJK_OK' if '\u5de5\u4f5b\u7bb8'.encode('utf-8') in d else 'MOJIBAKE')"
       - name: jpackage
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          jpackage --input desktop-java/target --main-jar duiyu-browser.jar --main-class com.feinanshu.Launcher --type app-image --name DuiyuBrowser --dest dist
+          jpackage --input desktop-java/target --main-jar duiyu-browser.jar --main-class com.feinanshu.Launcher --type app-image --name DuiyuBrowser --dest dist --java-options "-Dfile.encoding=UTF-8" --java-options "-Dsun.jnu.encoding=UTF-8" --java-options "-Dprism.lcdtext=false"
       - name: zip
         shell: pwsh
         run: Compress-Archive -Path dist/DuiyuBrowser/* -DestinationPath duiyu-browser-win.zip
