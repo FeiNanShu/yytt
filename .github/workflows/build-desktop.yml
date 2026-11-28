@@ -14,6 +14,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: commit log helper
+        run: echo ok
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -23,9 +25,22 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path desktop-java/src/main/resources/fonts | Out-Null
           curl.exe -sL -o desktop-java/src/main/resources/fonts/NotoSansCJKsc-Regular.otf "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf"
-          Get-Item desktop-java/src/main/resources/fonts/NotoSansCJKsc-Regular.otf | Select-Object Length | Format-List
       - name: build jar
-        run: mvn -B -f desktop-java/pom.xml package -DskipTests -Dfile.encoding=UTF-8 -Dproject.build.sourceEncoding=UTF-8
+        shell: pwsh
+        run: |
+          mvn -B -f desktop-java/pom.xml package -DskipTests 2>&1 | Tee-Object -FilePath mvn.log
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: dump error
+        if: failure()
+        shell: pwsh
+        run: |
+          if (Test-Path mvn.log) { Get-Content mvn.log | Select-Object -Last 60 | Out-File -Encoding utf8 build_error.txt }
+          else { "no mvn.log" | Out-File -Encoding utf8 build_error.txt }
+          git config user.name bot
+          git config user.email bot@local
+          git add build_error.txt
+          git commit -m "log: mvn error"
+          git push origin HEAD:main
       - name: jpackage
         shell: pwsh
         run: |
