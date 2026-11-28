@@ -1,11 +1,13 @@
 package com.feinanshu;
 
 import javafx.application.Application;
+import java.io.InputStream;
 import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
+import javafx.scene.text.Font;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
@@ -82,6 +84,20 @@ public class DuiyuApp extends Application {
         + "<a class='c plus' href='yytt://addr'>+</a>"
         + "</div></body></html>";
 
+    static String UI_FONT = "System";
+
+    static {
+        try (InputStream in = DuiyuApp.class.getResourceAsStream("/fonts/NotoSansCJKsc-Regular.otf")) {
+            if (in != null) {
+                Font f = Font.loadFont(in, 13);
+                if (f != null) {
+                    UI_FONT = f.getFamily();
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private final List<Tab> tabs = new ArrayList<>();
     private Tab current;
     private StackPane holder;
@@ -121,7 +137,7 @@ public class DuiyuApp extends Application {
     public void start(Stage stage) {
         this.stage = stage;
         BorderPane root = new BorderPane();
-        root.setStyle("-fx-background-color: " + C_BG + ";");
+        root.setStyle("-fx-background-color: " + C_BG + "; -fx-font-family: '" + UI_FONT + "';");
         root.setTop(topBar());
         holder = new StackPane();
         holder.setStyle("-fx-background-color: " + C_BG + ";");
